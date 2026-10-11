@@ -1,0 +1,7 @@
+arrivalbench:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('ARRIVAL_DB') }}"
+      threads: 1

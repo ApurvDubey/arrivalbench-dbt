@@ -1,0 +1,5 @@
+name: arrivalbench
+version: "0.1.0"
+profile: arrivalbench
+model-paths: ["models"]
+macro-paths: ["macros"]
