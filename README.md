@@ -29,3 +29,32 @@ used to cross-check the dbt results.
     python src/pysim.py        # reference simulation
     python src/run_bench.py    # real dbt (dbt-duckdb)
     pytest
+
+## Results (seed 7, 200 sales, 5 batches, DuckDB)
+
+Real dbt run, compared against the pre-registered matrix (P = pass, F = fail):
+
+| strategy | single | stream | late | ooo | dup | retry | backfill |
+|---|---|---|---|---|---|---|---|
+| append_naive | F | F | F | F | F | F | F |
+| delete_insert_nodedup | F | F | F | F | F | F | F |
+| upsert_unguarded | P | P | F | F | F | P | P |
+| upsert_guarded | P | P | P | P | P | P | P |
+| watermark | P | P | F | F | P | P | F |
+
+All 35 cells matched the predictions; there were no surprises. The pandas
+reference simulation (`src/pysim.py`) agrees with dbt on every cell.
+
+What this shows: an upsert with no recency guard looks correct on in-order
+data and silently overwrites newer rows with older ones when data arrives late,
+out of order or as a late duplicate. A watermark filter is idempotent but
+drops late and backfilled events. Only the guarded upsert was correct under
+every schedule.
+
+## Limits
+
+- Five hand-written strategies, one seeded log, one engine (DuckDB).
+- The predictions follow from how each strategy works, so a match is a check
+  that the harness is sound, not a discovery.
+- No agent-generated arm (the original paper's main subject).
+- Not yet run on the real Property Price Register data.

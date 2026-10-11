@@ -8,3 +8,6 @@ target/
 logs/
 dbt_packages/
 results/work/
+dbt_project/.user.yml
+results/bench.log
+results/.finished
