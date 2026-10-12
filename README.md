@@ -3,8 +3,9 @@
 Do common dbt incremental-model patterns stay correct when data arrives late,
 out of order, duplicated, retried or backfilled?
 
-Status: work in progress. Predictions are pre-registered in
-`docs/PREREGISTRATION.md` and committed before any dbt run.
+Status: complete for the scope described under Limits. Predictions are
+pre-registered in `docs/PREREGISTRATION.md` and were committed before any dbt
+run.
 
 Inspired by ArrivalBench (arXiv:2610.02363), which grades agent-built DuckDB
 pipelines under replayable delivery hazards. That paper's code and tasks are
@@ -22,6 +23,22 @@ does not reproduce their numbers.
 
 `src/pysim.py` is an independent pandas implementation of the same strategies,
 used to cross-check the dbt results.
+
+The five strategies, in plain terms:
+
+| strategy | what the model does |
+|---|---|
+| append_naive | add every incoming row to the table |
+| delete_insert_nodedup | replace rows with the same `sale_id`, but keep duplicates inside one batch |
+| upsert_unguarded | keep the latest row per sale within the batch and replace the stored row, even if the stored row is newer |
+| upsert_guarded | same, but only replace the stored row if the incoming one is newer |
+| watermark | only process rows newer than the newest row already stored |
+
+The seven schedules are: `single` (one batch) and `stream` (five batches in
+time order) as normal-delivery controls, then five hazards: `late` (the first
+batch arrives last), `ooo` (batches in reverse order), `dup` (the first batch
+is delivered again), `retry` (every batch runs twice) and `backfill` (the full
+history is reloaded at the end).
 
 ## Run
 
@@ -51,6 +68,16 @@ out of order or as a late duplicate. A watermark filter is idempotent but
 drops late and backfilled events. Only the guarded upsert was correct under
 every schedule.
 
+## What this means for a dbt user
+
+If your incremental model only filters on "newer than what I already have" or
+simply replaces rows by key, it will look correct while data arrives in order
+and can silently go wrong the first time a source delivers late, twice, or
+reloads history. The fix tested here is small: when replacing a row, compare
+the incoming version with the stored one and keep the newer. Check your own
+models against a late, a duplicate and a backfill delivery before trusting
+them.
+
 ## Limits
 
 - Five hand-written strategies, one seeded log, one engine (DuckDB).
@@ -58,3 +85,7 @@ every schedule.
   that the harness is sound, not a discovery.
 - No agent-generated arm (the original paper's main subject).
 - Not yet run on the real Property Price Register data.
+
+## Licence
+
+GNU Affero General Public License v3.0 (AGPL-3.0). See `LICENSE`.
